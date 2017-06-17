@@ -1,3 +1,8 @@
+## ----------------------------------------------------
+## Specify the directory to save checkpoint and figures
+## ----------------------------------------------------
+save_dir = 'save_DNN_better_init'
+
 ## --------------------------
 ## Imports and configurations
 ## --------------------------
@@ -7,6 +12,9 @@ config = tf.ConfigProto()
 config.gpu_options.per_process_gpu_memory_fraction = 0.4
 set_session(tf.Session(config=config))
 
+## ----------------------
+## data loading
+## ----------------------
 import numpy as np
 import tqdm
 import os
@@ -92,17 +100,20 @@ class Model_DNN(object):
         self.b3 = tf.Variable(tf.constant(0.1, shape=[self.output_size]))
         self.y  = tf.nn.softmax(tf.matmul(self.l2, self.w3)+self.b3)
 
-        # Loss, Optimizer and Predictions
+        # Loss, Optimizer and Training operation
         self.cross_entropy = -tf.reduce_sum(self.y_*tf.log(self.y))
-
         self.train_step = self.opt_fn(self.learning_rate).minimize(self.cross_entropy)
 
+        # Prediction
         self.correct_prediction = tf.equal(tf.arg_max(self.y,1),tf.arg_max(self.y_,1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction,tf.float32))
 
         # Gradients of loss w.r.t. weights
         self.w2_grad = tf.gradients(self.cross_entropy, [self.w2])[0]
         
+        # Layer Jacobian
+        self.l1_grad = tf.stack([tf.gradients(l1i, self.x)[0] for l1i in tf.unstack(self.l1, axis=1)],axis=2)
+        self.l2_grad = tf.stack([tf.gradients(l1i, self.l1)[0] for l1i in tf.unstack(self.l2, axis=1)],axis=2)
         ## Keep the last 5 checkpoints
         self.saver = tf.train.Saver()
     
@@ -126,6 +137,41 @@ class Model_DNN(object):
         self.w2_grad_list = np.array(self.w2_grad_list)
         self.accuracy_list = np.array(self.accuracy_list)
         self.z2_list = np.array(self.z2_list)
+
+    def train_Jacob(self,sess,firstn=100):
+        self.z1_list, self.z2_list, self.y_list = [],[],[]
+        self.l1_grad_list, self.l2_grad_list, self.l3_grad_list = [],[],[]
+        self.accuracy_list = []
+        for idx in tqdm.tqdm(range(self.n_steps)):
+            batch = mnist.train.next_batch(self.batch_size)
+            _, self.l1_grad_, self.l2_grad_, self.l3_grad_ = sess.run([self.train_step,self.l1_grad, self.l2_grad, self.l3_grad],
+                                                  feed_dict={self.x: batch[0], self.y_: batch[1]})
+            if idx < firstn:
+                self.l1_grad_list.append(self.l1_grad_)
+                self.l2_grad_list.append(self.l2_grad_)
+                self.l3_grad_list.append(self.l3_grad_)
+
+            if idx % 50 is 0:
+                self.accuracy_, self.z1_, self.z2_, self.yy_ = sess.run([self.accuracy, self.z1, self.z2, self.y],
+                                                    feed_dict={self.x: mnist.test.images,
+                                                               self.y_: mnist.test.labels})
+                self.accuracy_list.append(self.accuracy_)
+                self.z1_list.append(np.mean(self.z1_, axis = 0))
+                self.z2_list.append(np.mean(self.z2_, axis = 0))
+                self.y_list.append(np.mean(self.yy_, axis = 0))
+
+            if idx % 500 is 0:
+                self.save(sess, self.save_dir, idx)
+
+        self.l1_grad_list = np.array(self.l1_grad_list)
+        self.l2_grad_list = np.array(self.l2_grad_list)
+        self.l3_grad_list = np.array(self.l3_grad_list)
+
+        self.accuracy_list = np.array(self.accuracy_list)
+        
+        self.z1_list = np.array(self.z1_list)
+        self.z2_list = np.array(self.z2_list)
+        self.y_list = np.array(self.y_list)
     
     @property
     def model_dir(self):
@@ -150,11 +196,6 @@ class Model_DNN(object):
 w1_initial = tf.truncated_normal([784,100], stddev=np.sqrt(2 / 784), seed=5566)
 w2_initial = tf.truncated_normal([100,100], stddev=np.sqrt(2 / 100), seed=5566)
 w3_initial = tf.truncated_normal([100,10], stddev=np.sqrt(2 / 100), seed=5566)
-
-## ----------------------------------------------------
-## Specify the directory to save checkpoint and figures
-## ----------------------------------------------------
-save_dir = 'save_DNN_better_init'
 
 ## =============================
 ## (1) Try different batch sizes
@@ -357,6 +398,97 @@ ax.set_title('Batch Normalization Accuracy with AdamOptimizer')
 ax.legend(loc=4)
 plt.savefig(os.path.join(save_dir, 'accuracy_vs_act_fns_adam.png'))
 plt.show()
+## ------------------------------------------------------
+## [NOTE] Save results before running the next experiment
+## ------------------------------------------------------
+
+## =========================================================
+## (4) Example of Layer Jacobian
+## Note: run 4000 steps only,
+## =========================================================
+act_fn_list = [tf.nn.sigmoid, tf.nn.relu]
+
+w2_BN_dict, w2_grad_BN_dict, accuracy_BN_dict, z2_BN_dict = {}, {}, {}, {}
+w2_dict, w2_grad_dict, accuracy_dict, z2_dict = {}, {}, {}, {}
+l1_grad_BN_dict, l2_grad_BN_dict = {}, {}, {}
+l1_grad_dict, l2_grad_dict = {}, {}, {}
+
+for afn in act_fn_list:
+    key = afn.__qualname__
+    ## run model with BN:
+    model = Model_DNN(n_steps = 4000, act_fn = afn, save_dir = save_dir)
+    model.build_model(w1_initial,w2_initial,w3_initial)
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        model.train_Jacob(sess, firstn=100)
+    l1_grad_BN_dict[key] = model.l1_grad_list
+    l2_grad_BN_dict[key] = model.l2_grad_list
+    w2_BN_dict[key] = model.w2_list
+    w2_grad_BN_dict[key] = model.w2_grad_list
+    accuracy_BN_dict[key] = model.accuracy_list
+    z2_BN_dict[key] = model.z2_list
+
+    ## run model without BN:
+    model = Model_DNN(n_steps = 4000, act_fn = afn, use_bn = False, save_dir = save_dir)
+    model.build_model(w1_initial,w2_initial,w3_initial)
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        model.train(sess)
+
+    l1_grad_dict[key] = model.l1_grad_list
+    l2_grad_dict[key] = model.l2_grad_list
+    w2_dict[key] = model.w2_list
+    w2_grad_dict[key] = model.w2_grad_list
+    accuracy_dict[key] = model.accuracy_list
+    z2_dict[key] = model.z2_list
+
+    ## 
+    l1_grad = np.reshape(l1_grad_list,newshape=[-1,l1_grad_list.shape[2],l1_grad_list.shape[3]])
+    l1_grad_BN = np.reshape(l1_grad_BN_list,newshape=[-1,l1_grad_list.shape[2],l1_grad_list.shape[3]])
+    
+    from scipy.linalg import svdvals
+    svd1,svd1_BN = [],[]
+    for i in range(l1_grad.shape[0]):
+        svd1.append(svdvals(l1_grad[i]))
+        svd1_BN.append(svdvals(l1_grad_BN[i]))
+    svd1 = np.array(svd1)
+    svd1_BN = np.array(svd1_BN)
+
+    
+
+## Plot accuracy
+fig, ax = plt.subplots(figsize=(12,8))
+color_list = ['b', 'g', 'r', 'k', 'c', 'm']
+
+## (sort by accuracy in decreasing order)
+final_accuracy_BN_dict = [accuracy_BN_dict[i][400] for i in key_list]
+decreasing_order = sorted(range(len(final_accuracy_BN_dict)),
+                          key=lambda k: -final_accuracy_BN_dict[k])
+
+## Plot accuracy with BN
+for idx in decreasing_order:
+    ax.plot(range(0,len(accuracy_BN_dict[key_list[idx]])*50,50),
+            accuracy_BN_dict[key_list[idx]],
+            color = color_list[idx], alpha = 0.4, linewidth = 2.5,
+            label='activation function = %s, BN'%(key_list[idx]))
+
+## Plot accuracy without BN
+for idx in decreasing_order:
+    ax.plot(range(0,len(accuracy_dict[key_list[idx]])*50,50),
+            accuracy_dict[key_list[idx]],
+            color = color_list[idx], alpha = 0.8, linewidth = 1.2,
+            linestyle = '--',
+            label='activation function = %s'%(key_list[idx]))
+
+ax.set_xlabel('Training steps')
+ax.set_ylabel('Accuracy')
+# ax.set_xlim([20000,40000])
+ax.set_ylim([0.9,1])
+ax.set_title('Batch Normalization Accuracy with AdamOptimizer')
+ax.legend(loc=4)
+plt.savefig(os.path.join(save_dir, 'accuracy_vs_act_fns_adam.png'))
+plt.show()
+
 ## ------------------------------------------------------
 ## [NOTE] Save results before running the next experiment
 ## ------------------------------------------------------
