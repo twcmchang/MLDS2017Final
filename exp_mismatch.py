@@ -49,7 +49,7 @@ w3_initial = tf.truncated_normal([100,10], stddev=np.sqrt(2 / 100), seed=5566)
 ## (4) Try different distribution of testing data
 ## =========================================================
 
-pratio_list = [0.5, 0.4, 0.3, 0.2, 0.1]
+pratio_list = [0.5, 0.1, 0.05, 0.01]
 w2_BN_dict, w2_grad_BN_dict, accuracy_BN_dict, z2_BN_dict = {}, {}, {}, {}
 w2_dict, w2_grad_dict, accuracy_dict, z2_dict = {}, {}, {}, {}
 
@@ -70,7 +70,8 @@ for rat in pratio_list:
     
     key = str(rat*100)
     ## run model with BN:
-    model = Model_DNN(n_steps = 40000, save_dir = save_dir, data=mnist)
+    model = Model_DNN(n_steps = 1000, save_dir = save_dir, data=mnist,
+    				record_every_n_steps=10)
     model.build_model(w1_initial,w2_initial,w3_initial)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
@@ -80,7 +81,8 @@ for rat in pratio_list:
     accuracy_BN_dict[key] = model.accuracy_list
     z2_BN_dict[key] = model.z2_list
     ## run model without BN:
-    model = Model_DNN(n_steps = 40000, use_bn = False, save_dir = save_dir, data=mnist)
+    model = Model_DNN(n_steps = 1000, use_bn = False, save_dir = save_dir, data=mnist,
+    				record_every_n_steps=10)
     model.build_model(w1_initial,w2_initial,w3_initial)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
@@ -110,7 +112,7 @@ for idx in decreasing_order:
     ax.plot(range(0,len(accuracy_BN_dict[key_list[idx]])*model.record_every_n_steps,model.record_every_n_steps),
             accuracy_BN_dict[key_list[idx]],
             color = color_list[idx], alpha = 0.4, linewidth = 2.5,
-            label='pos:neg= %s:%s BN'%(int(100*((1-pratio_list[idx])/pratio_list[idx])),int(1)))
+            label='pos:neg= %s:%s BN'%(int((1-pratio_list[idx])/pratio_list[idx]),int(1)))
 
 ## Plot accuracy without BN
 for idx in decreasing_order:
@@ -118,10 +120,11 @@ for idx in decreasing_order:
             accuracy_dict[key_list[idx]],
             color = color_list[idx], alpha = 0.8, linewidth = 1.2,
             linestyle = '--',
-            label='pos:neg= %s:%s BN'%(int(100*((1-pratio_list[idx])/pratio_list[idx])),int(1)))
+            label='pos:neg= %s:%s'%(int((1-pratio_list[idx])/pratio_list[idx]),int(1)))
 
 ax.set_xlabel('Training steps')
 ax.set_ylabel('Accuracy')
+ax.set_xlim([0, 500])
 ax.set_title('Mismatch between Training/Testing')
 ax.legend(loc=4)
 plt.savefig(os.path.join(save_dir, 'accuracy_vs_mismatch.png'))
