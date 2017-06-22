@@ -9,6 +9,7 @@ Team Members: f03942038 鍾佳豪,r05942102 王冠驊,d05921018 林家慶,d05921
 ```
 python exp_actfn.py
 ```
+can observe that BN help elivaiate the gradient vanishing
 
 2. The effect of different optimizer on batch normalization
 ```
@@ -25,9 +26,9 @@ python exp_batch_size.py
 python exp_mismatch.py
 ```
 
-5. Regularization effect
+5. Can batch normalization help regularize the growth of weights?
 ```
-Note that the results are observable from the experiment of different activation functions (1)
+Note that these results are observable from the 1. the effect of different activation functions 
 ```
 
 6. How batch normalization influences singular values of layer Jacobian?
@@ -35,7 +36,12 @@ Note that the results are observable from the experiment of different activation
 python exp_Jacobian.py
 ```
 
-Note that the resulting plots will be stored in save_dir.
+7. Batch Normalization vs. Batch Renormalization
+```
+python exp_BN_BRN.py
+```
+
+### Note that the resulting plots will be stored in save_dir.
 
 ### previous version of our implementation
 ```
