@@ -67,43 +67,57 @@ for afn in act_fn_list:
     accuracy_dict[key] = model.accuracy_list
     z2_dict[key] = model.z2_list
 
-    ## 
-    l1_grad = np.reshape(l1_grad_dict[key],newshape=[-1,l1_grad_dict[key].shape[2],l1_grad_dict[key].shape[3]])
-    l1_grad_BN = np.reshape(l1_grad_BN_dict[key],newshape=[-1,l1_grad_BN_dict[key].shape[2],l1_grad_BN_dict[key].shape[3]])
-    l2_grad = np.reshape(l2_grad_dict[key],newshape=[-1,l2_grad_dict[key].shape[2],l2_grad_dict[key].shape[3]])
-    l2_grad_BN = np.reshape(l2_grad_BN_dict[key],newshape=[-1,l2_grad_BN_dict[key].shape[2],l2_grad_BN_dict[key].shape[3]])
+key_list = list(accuracy_dict.keys())
+nlayer = [1,2]
 
-    
-    from scipy.linalg import svdvals
-    svd1,svd1_BN, svd2, svd2_BN = [],[],[],[]
-    for i in range(l1_grad.shape[0]):
-        svd1.append(svdvals(l1_grad[i]))
-        svd1_BN.append(svdvals(l1_grad_BN[i]))
-        svd2.append(svdvals(l2_grad[i]))
-        svd2_BN.append(svdvals(l2_grad_BN[i]))
-    svd1 = np.array(svd1)
-    svd1_BN = np.array(svd1_BN)
-    svd2 = np.array(svd2)
-    svd2_BN = np.array(svd2_BN)
+for key in key_list:
+    for k in nlayer: 
+        if k == 1:
+            l_grad = np.reshape(l1_grad_dict[key],newshape=[-1,l1_grad_dict[key].shape[2],l1_grad_dict[key].shape[3]])
+            l_grad_BN = np.reshape(l1_grad_BN_dict[key],newshape=[-1,l1_grad_BN_dict[key].shape[2],l1_grad_BN_dict[key].shape[3]])
+        else:
+            l_grad = np.reshape(l2_grad_dict[key],newshape=[-1,l2_grad_dict[key].shape[2],l2_grad_dict[key].shape[3]])
+            l_grad_BN = np.reshape(l2_grad_BN_dict[key],newshape=[-1,l2_grad_BN_dict[key].shape[2],l2_grad_BN_dict[key].shape[3]])
 
-    fig, axes = plt.subplots(2, 2, figsize=(12,12),sharex='row',sharey='row')
-    fig.tight_layout()
+        from scipy.linalg import svdvals
+        svd,svd_BN = [],[]
+        for i in range(l_grad.shape[0]):
+            svd.append(svdvals(l_grad[i]))
+            svd_BN.append(svdvals(l_grad_BN[i]))
 
-    for i, ax in enumerate(axes):
-        if i==0:
-            ax[0].set_title("Without BN")
-            ax[1].set_title("With BN")
-            ax[0].hist(np.hstack(svd1),1000)
-            ax[1].hist(np.hstack(svd1_BN),100)
-        if i==1:
-            ax[0].set_title("Without BN")
-            ax[1].set_title("With BN")
-            ax[0].hist(np.hstack(svd2),100)
-            ax[1].hist(np.hstack(svd2_BN),100)
-    plt.savefig(os.path.join(save_dir, 'layer_Jacobian_vs_act_fns_'+key+'.png'))
-    plt.show()
-    plt.close()
+        svd = np.array(svd)
+        svd_BN = np.array(svd_BN)
 
+        plt.figure(figsize=(8,8))
+        x1 = np.hstack(svd)
+        x2 = np.hstack(svd_BN)
+
+        data = np.vstack([x1,x2]).T
+        bins = np.linspace(0.0, 1.0, 50)
+        n,bins,patches = plt.hist(data,bins)
+        plt.legend(loc='upper right',labels=['without BN','with BN'])
+        plt.xlabel("Singluar value")
+        plt.ylabel("Count")
+        # plt.ylim([0,90000])
+        plt.title("Singular Values of Layer "+str(k)+" Jacobian ("+key+",SGD")
+        plt.savefig(os.path.join(save_dir,"hist_l"+str(k)+"_singular_"+key+"_SGD.png"))
+        plt.show()
+        plt.close()
+
+        plt.figure(figsize=(8,8))
+        x1 = np.hstack(svd)
+        x2 = np.hstack(svd_BN)
+
+        data = np.vstack([x1,x2]).T
+        bins = np.linspace(0.5,1.0, 50)
+        n,bins,patches = plt.hist(data,bins)
+        plt.legend(loc='upper right',labels=['without BN','with BN'])
+        plt.xlabel("Singluar value")
+        plt.ylabel("Count")
+        plt.title("Singular Values of Layer "+str(k)+" Jacobian ("+key+",SGD)")
+        plt.savefig(os.path.join(save_dir,"hist_l"+str(k)+"_singular_"+key+"_SGD_closer.png"))
+        plt.show()
+        plt.close()
 
 ## ------------------------------------------------------
 ## [NOTE] Save results before running the next experiment
