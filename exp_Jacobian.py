@@ -58,7 +58,7 @@ for afn in act_fn_list:
     model.build_model(w1_initial,w2_initial,w3_initial)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        model.train(sess)
+        model.train_Jacob(sess)
 
     l1_grad_dict[key] = model.l1_grad_list
     l2_grad_dict[key] = model.l2_grad_list
