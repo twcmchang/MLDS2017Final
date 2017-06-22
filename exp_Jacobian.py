@@ -68,10 +68,10 @@ for afn in act_fn_list:
     z2_dict[key] = model.z2_list
 
     ## 
-    l1_grad = np.reshape(l1_grad_list,newshape=[-1,l1_grad_list.shape[2],l1_grad_list.shape[3]])
-    l1_grad_BN = np.reshape(l1_grad_BN_list,newshape=[-1,l1_grad_list.shape[2],l1_grad_list.shape[3]])
-    l2_grad = np.reshape(l2_grad_list,newshape=[-1,l2_grad_list.shape[2],l2_grad_list.shape[3]])
-    l2_grad_BN = np.reshape(l2_grad_BN_list,newshape=[-1,l2_grad_list.shape[2],l2_grad_list.shape[3]])
+    l1_grad = np.reshape(l1_grad_dict[key],newshape=[-1,l1_grad_dict[key].shape[2],l1_grad_dict[key].shape[3]])
+    l1_grad_BN = np.reshape(l1_grad_BN_dict[key],newshape=[-1,l1_grad_BN_dict[key].shape[2],l1_grad_BN_dict[key].shape[3]])
+    l2_grad = np.reshape(l2_grad_dict[key],newshape=[-1,l2_grad_dict[key].shape[2],l2_grad_dict[key].shape[3]])
+    l2_grad_BN = np.reshape(l2_grad_BN_dict[key],newshape=[-1,l2_grad_BN_dict[key].shape[2],l2_grad_BN_dict[key].shape[3]])
 
     
     from scipy.linalg import svdvals
