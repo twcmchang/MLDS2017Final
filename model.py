@@ -139,17 +139,18 @@ class Model_DNN(object):
         self.z2_list = np.array(self.z2_list)
 
     def train_Jacob(self,sess,firstn=100):
+        self.w1_list, self.w1_grad_list = [], []
+        self.w2_list, self.w2_grad_list = [], []
         self.z1_list, self.z2_list, self.y_list = [],[],[]
         self.l1_grad_list, self.l2_grad_list, self.l3_grad_list = [],[],[]
         self.accuracy_list = []
         for idx in tqdm.tqdm(range(self.n_steps)):
             batch = self.data.train.next_batch(self.batch_size)
-            _, self.l1_grad_, self.l2_grad_, self.l3_grad_ = sess.run([self.train_step,self.l1_grad, self.l2_grad, self.l3_grad],
+            _, self.l1_grad_, self.l2_grad_ = sess.run([self.train_step,self.l1_grad, self.l2_grad],
                                                   feed_dict={self.x: batch[0], self.y_: batch[1]})
             if idx < firstn:
                 self.l1_grad_list.append(self.l1_grad_)
                 self.l2_grad_list.append(self.l2_grad_)
-                self.l3_grad_list.append(self.l3_grad_)
 
             if idx % self.record_every_n_steps is 0:
                 self.accuracy_, self.z1_, self.z2_, self.yy_ = sess.run([self.accuracy, self.z1, self.z2, self.y],
@@ -165,7 +166,6 @@ class Model_DNN(object):
 
         self.l1_grad_list = np.array(self.l1_grad_list)
         self.l2_grad_list = np.array(self.l2_grad_list)
-        self.l3_grad_list = np.array(self.l3_grad_list)
 
         self.accuracy_list = np.array(self.accuracy_list)
         
