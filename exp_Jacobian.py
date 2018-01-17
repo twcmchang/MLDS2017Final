@@ -41,11 +41,11 @@ l1_grad_dict, l2_grad_dict = {}, {}
 for afn in act_fn_list:
     key = afn.__qualname__
     ## run model with BN:
-    model = Model_DNN(n_steps = 1000, act_fn = afn, save_dir = save_dir, data=mnist)
+    model = Model_DNN(n_steps = 1000, record_every_n_steps = 10, act_fn = afn, save_dir = save_dir, data=mnist)
     model.build_model(w1_initial,w2_initial,w3_initial)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        model.train_Jacob(sess, firstn=100)
+        model.train_Jacob(sess, firstn = 1000)
     l1_grad_BN_dict[key] = model.l1_grad_list
     l2_grad_BN_dict[key] = model.l2_grad_list
     w2_BN_dict[key] = model.w2_list
@@ -54,11 +54,11 @@ for afn in act_fn_list:
     z2_BN_dict[key] = model.z2_list
 
     ## run model without BN:
-    model = Model_DNN(n_steps = 1000, act_fn = afn, use_bn = False, save_dir = save_dir, data=mnist)
+    model = Model_DNN(n_steps = 1000, record_every_n_steps = 10, act_fn = afn, use_bn = False, save_dir = save_dir, data=mnist)
     model.build_model(w1_initial,w2_initial,w3_initial)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        model.train_Jacob(sess)
+        model.train_Jacob(sess, firstn = 1000)
 
     l1_grad_dict[key] = model.l1_grad_list
     l2_grad_dict[key] = model.l2_grad_list
